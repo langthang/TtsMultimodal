@@ -1,0 +1,7 @@
+google-cloud-texttospeech
+boto3
+mutagen
+python-pptx
+moviepy
+pdf2image
+pillow
