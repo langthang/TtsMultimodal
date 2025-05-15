@@ -1,5 +1,5 @@
 from google.cloud import texttospeech
-from tts.TextToSpeechService import TextToSpeechService
+from TextToSpeechService import TextToSpeechService
 
 class GoogleTextToSpeech(TextToSpeechService):
     """Implementation of TextToSpeechService using Google Cloud Text-to-Speech."""

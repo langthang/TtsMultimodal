@@ -5,6 +5,8 @@ Data/*
 *.pdf
 extra.txt
 thumbnail.png
+authentication.log
+youtube_token.pickle
 
 # extras
 *.env

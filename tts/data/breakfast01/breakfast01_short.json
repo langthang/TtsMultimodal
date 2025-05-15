@@ -7,19 +7,27 @@
   "category": "daily life",
   "hashtags": ["#breakfast", "#food", "#conversation", "#daily", "#life"],
   "language": "English",
+  "conversations_background": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/2025_04_28_23_01_52_603_242390.png",
+  "new_words_background": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/2025_04_28_23_01_52_603_242390.png",
   "speakers": {
     "Anna": {"gender": "female"},
     "Tom": {"gender": "male"},
     "Andy": {"gender": "male"}
   },
   "conversations": [
+    {"order": 0, "speaker": "Andy", "text": "Today's topic is about breakfast! Enjoy!"},
     {"order": 1, "speaker": "Anna", "text": "Good morning, Tom!"},
     {"order": 2, "speaker": "Tom", "text": "Good morning, Anna!"},
     {"order": 3, "speaker": "Anna", "text": "Did you eat breakfast?"},
     {"order": 4, "speaker": "Tom", "text": "Not yet. I’m very hungry!"},
     {"order": 5, "speaker": "Andy", "text": "I’m very hungry, too!"}
   ],
+  "new_words_intro": {
+    "speaker": "Anna", 
+    "text": "Good morning, Tom!"
+  },
   "new_words": [
+    {"order": 0, "example": "Let's learn some new words in today conversation."},
     {"order": 1, "word": "breakfast", "meaning": "the first meal in the morning", "example": "I eat breakfast at 8 AM."},
     {"order": 2, "word": "hungry", "meaning": "when you want to eat food", "example": "I am hungry after school."}
   ]

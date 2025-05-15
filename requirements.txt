@@ -1,7 +1,12 @@
 google-cloud-texttospeech
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
 boto3
 mutagen
 python-pptx
 moviepy
 pdf2image
 pillow
+python-dotenv>=1.0.0
+pymongo>=4.6.1

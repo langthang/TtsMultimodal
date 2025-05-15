@@ -5,3 +5,5 @@ python-pptx
 moviepy
 pdf2image
 pillow
+python-dotenv>=1.0.0
+pymongo>=4.6.1

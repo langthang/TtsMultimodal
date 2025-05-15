@@ -1,0 +1,38 @@
+import os
+import sys
+from TextToSpeechProcessor import TextToSpeechProcessor
+from TextToSpeechProcessor2 import TextToSpeechProcessor2
+from AppConfig import AppConfig
+
+def get_project_root():
+    """Get the absolute path to the project root directory."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(current_dir)
+
+def main():
+    """Main entry point of the application."""
+    try:
+        # Check for command-line argument
+        if len(sys.argv) < 2:
+            print("Usage: python Main.py <conversation_id_or_json_file>")
+            return
+        
+        conversation_id_or_json_file = sys.argv[1]
+        if conversation_id_or_json_file.lower().endswith('.json') and not os.path.isfile(conversation_id_or_json_file):
+            print(f"JSON file not found: {conversation_id_or_json_file}")
+            return
+
+        # Initialize configuration
+        config = AppConfig()
+        
+        # Initialize the processor with the JSON file path
+        processor = TextToSpeechProcessor2(conversation_id_or_json_file)
+        processor.upload()
+        
+    except ValueError as e:
+        print(f"Configuration error: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
