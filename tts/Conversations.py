@@ -30,14 +30,19 @@ class Conversation:
 
 class NewWord:
     """Represents a single new word entry."""
-    def __init__(self, order: int, word: str, meaning: str, example: str):
+    def __init__(self, order: int, word: str, meaning: str, example: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None):
         self.order = order
         self.word = word
         self.meaning = meaning
         self.example = example
+        self.slide = slide  # Path to the slide file
+        self.video = video  # Path to the video file
+        self.audio_length = audio_length  # Length of the audio in seconds
+        self.audio = audio  # Path to the audio file
 
     def __repr__(self):
-        return f"NewWord(order={self.order}, word='{self.word}', meaning='{self.meaning}', example='{self.example}')"
+        return (f"NewWord(order={self.order}, word='{self.word}', meaning='{self.meaning}', example='{self.example}', "
+                f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}')")
 
 
 class Speaker:
@@ -89,7 +94,17 @@ class Conversations:
 
         # Parse new words
         self.new_words = [
-            NewWord(**word) for word in data.get("new_words", [])
+            NewWord(
+                order=word.get("order"),
+                word=word.get("word"),
+                meaning=word.get("meaning"),
+                example=word.get("example"),
+                slide=word.get("slide"),
+                video=word.get("video"),
+                audio_length=word.get("audio_length"),
+                audio=word.get("audio")
+            )
+            for word in data.get("new_words", [])
         ]
 
     def get_speaker(self, name: str) -> Speaker:

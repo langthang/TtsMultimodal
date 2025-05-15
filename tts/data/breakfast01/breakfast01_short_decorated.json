@@ -26,63 +26,94 @@
     },
     "conversations": [
         {
+            "order": 0,
+            "speaker": "Andy",
+            "text": "Today's topic is about breakfast! Enjoy!",
+            "slide": null,
+            "video": null,
+            "audio_length": null,
+            "audio": null
+        },
+        {
             "order": 1,
             "speaker": "Anna",
             "text": "Good morning, Tom!",
-            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_conversations/1_Anna.pptx",
-            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_conversations/1_Anna.avi",
-            "audio_length": 1608,
-            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_conversations/1_Anna.mp3"
+            "slide": null,
+            "video": null,
+            "audio_length": null,
+            "audio": null
         },
         {
             "order": 2,
             "speaker": "Tom",
             "text": "Good morning, Anna!",
-            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_conversations/2_Tom.pptx",
-            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_conversations/2_Tom.avi",
-            "audio_length": 1488,
-            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_conversations/2_Tom.mp3"
+            "slide": null,
+            "video": null,
+            "audio_length": null,
+            "audio": null
         },
         {
             "order": 3,
             "speaker": "Anna",
             "text": "Did you eat breakfast?",
-            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_conversations/3_Anna.pptx",
-            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_conversations/3_Anna.avi",
-            "audio_length": 1536,
-            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_conversations/3_Anna.mp3"
+            "slide": null,
+            "video": null,
+            "audio_length": null,
+            "audio": null
         },
         {
             "order": 4,
             "speaker": "Tom",
             "text": "Not yet. I\u2019m very hungry!",
-            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_conversations/4_Tom.pptx",
-            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_conversations/4_Tom.avi",
-            "audio_length": 2352,
-            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_conversations/4_Tom.mp3"
+            "slide": null,
+            "video": null,
+            "audio_length": null,
+            "audio": null
         },
         {
             "order": 5,
             "speaker": "Andy",
             "text": "I\u2019m very hungry, too!",
-            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_conversations/5_Andy.pptx",
-            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_conversations/5_Andy.avi",
-            "audio_length": 1776,
-            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_conversations/5_Andy.mp3"
+            "slide": null,
+            "video": null,
+            "audio_length": null,
+            "audio": null
         }
     ],
+    "new_words_intro": {
+        "speaker": "Anna",
+        "text": "Good morning, Tom!"
+    },
     "new_words": [
+        {
+            "order": 0,
+            "word": null,
+            "meaning": null,
+            "example": "Let's learn some new words in today conversation.",
+            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_new_words/new_word_0.pptx",
+            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_new_words/new_word_0.mp4",
+            "audio_length": 3048,
+            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_new_words/new_word_0.mp3"
+        },
         {
             "order": 1,
             "word": "breakfast",
             "meaning": "the first meal in the morning",
-            "example": "I eat breakfast at 8 AM."
+            "example": "I eat breakfast at 8 AM.",
+            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_new_words/new_word_1.pptx",
+            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_new_words/new_word_1.mp4",
+            "audio_length": 6384,
+            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_new_words/new_word_1.mp3"
         },
         {
             "order": 2,
             "word": "hungry",
             "meaning": "when you want to eat food",
-            "example": "I am hungry after school."
+            "example": "I am hungry after school.",
+            "slide": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/slide_new_words/new_word_2.pptx",
+            "video": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/video_new_words/new_word_2.mp4",
+            "audio_length": 5808,
+            "audio": "/Users/langthang/Documents/workspace/contentgenerator/TtsMultimodal/tts/data/breakfast01/audio_new_words/new_word_2.mp3"
         }
     ]
 }
