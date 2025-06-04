@@ -18,7 +18,7 @@ class VideoGenerator:
         image_clip = ImageClip(
             img=slide_image_file, 
             duration=(audio_length / 1000) + 1
-        )
+        ).resized((1920, 1080))
         
         # Generate video with audio
         image_clip.write_videofile(

@@ -1,27 +1,23 @@
+# tts/TextToSpeechProcessor.py
 import os
 import json
-import subprocess
-from pdf2image import convert_from_path
-from pptx.util import Inches
-from mutagen.mp3 import MP3
-from pptx import Presentation
-from pptx.dml.color import RGBColor  # For setting text color
-from pptx.enum.text import PP_ALIGN  # For text alignment
-from pptx.util import Pt  # For setting font size
-from lxml import etree  # For XML manipulation
+from typing import Dict, Set, Union
 from moviepy import *
+from AppConfig import AppConfig
 from Conversations import Conversations
 from GoogleTextToSpeech import GoogleTextToSpeech
-from AppConfig import AppConfig
-
-# Get the configuration instance
-config = AppConfig()
+from processors.SpeechGenerator import SpeechGenerator
+from processors.SlideGenerator import SlideGenerator
+from processors.VideoGenerator import VideoGenerator
+from database.MongoDBConnection import MongoDBConnection
+from uploaders.YouTubeUploader import YouTubeUploader
+from config.YouTubeConfig import YouTubeConfig
 
 # Mapping gender to Google TTS voice names
 GENDER_TO_GOOGLE_TTS_VOICE_NAMES = {
-    "female": ["en-US-Wavenet-F", "en-US-Wavenet-C", "en-US-Wavenet-E", "en-US-Wavenet-G", "en-US-Wavenet-H"],
-    "male": ["en-US-Wavenet-A", "en-US-Wavenet-D", "en-US-Wavenet-B", "en-US-Wavenet-I", "en-US-Wavenet-J"],
-    config.default_speaker: ["en-US-Wavenet-A"]
+    "female": ["en-US-Chirp3-HD-Aoede", "en-US-Chirp3-HD-Callirrhoe", "en-US-Chirp3-HD-Erinome", "en-US-Chirp3-HD-Kore", "en-US-Chirp3-HD-Leda"],
+    "male": ["en-US-Chirp3-HD-Achird", "en-US-Chirp3-HD-Alnilam", "en-US-Chirp3-HD-Algenib", "en-US-Chirp3-HD-Charon", "en-US-Chirp3-HD-Sadachbia"],
+    "neutral": ["en-US-Chirp3-HD-Achird"]
 }
 
 # Mapping language to Google TTS language codes
@@ -31,22 +27,57 @@ LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE = {
     "Spanish": "es-ES"
 }
 
-
 class TextToSpeechProcessor:
-    def __init__(self, json_file: str):
-        """Initialize the processor with the JSON file path."""
-        self.json_file = json_file
-        self.conversations_data = Conversations(json_file)
-        self.google_tts = GoogleTextToSpeech()
-        self.speaker_to_voice = {}
-        self.used_voices = set()
+    def __init__(self, source: Union[str, dict]):
+        """
+        Initialize the processor with either a JSON file path or MongoDB document ID.
+        
+        Args:
+            source: Either a JSON file path (str ending with .json) or MongoDB document ID (str)
+        """
+        self.config = AppConfig()
+        
+        # Initialize processors
+        google_tts = GoogleTextToSpeech()
+        self.speech_generator = SpeechGenerator(google_tts)
+        self.slide_generator = SlideGenerator()
+        self.video_generator = VideoGenerator()
+        
+        # Voice management
+        self.speaker_to_voice: Dict[str, str] = {}
+        self.used_voices: Set[str] = set()
 
+        # Load conversations data
+        if isinstance(source, str) and source.endswith('.json'):
+            self.json_file = source
+            self.conversations_data = Conversations(source)
+        else:
+            # Assume it's a MongoDB document ID
+            self.conversations_data = Conversations.from_mongodb(source)
+            # Set json_file path for output directory structure
+            self.json_file = self.conversations_data.get_location()
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
+        
+        # Initialize voice assignments
+        self.assign_voices_to_speakers()
+
+    def _get_language_code(self) -> str:
+        """Get the language code for the current conversation."""
+        language = self.conversations_data.language
+        return LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE.get(
+            language, 
+            LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE[self.config.default_language]
+        )
 
     def assign_voices_to_speakers(self):
         """Assign unique voices to each speaker based on their gender."""
         for speaker_name, speaker in self.conversations_data.speakers.items():
             gender = speaker.gender.lower()
-            available_voices = GENDER_TO_GOOGLE_TTS_VOICE_NAMES.get(gender, GENDER_TO_GOOGLE_TTS_VOICE_NAMES[config.default_speaker])
+            available_voices = GENDER_TO_GOOGLE_TTS_VOICE_NAMES.get(
+                gender, 
+                GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker]
+            )
 
             # Find the next available voice
             for voice in available_voices:
@@ -55,620 +86,376 @@ class TextToSpeechProcessor:
                     self.used_voices.add(voice)
                     break
 
-        # If any speakers are left without a voice, assign them the default voice
-        for speaker_name, speaker in self.conversations_data.speakers.items():
+            # If no voice assigned, use default
             if speaker_name not in self.speaker_to_voice:
-                self.speaker_to_voice[speaker_name] = GENDER_TO_GOOGLE_TTS_VOICE_NAMES[config.default_speaker]
-
+                self.speaker_to_voice[speaker_name] = GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker][0]
 
     def process_conversations(self):
-        """Process each conversation line and synthesize speech."""
-        # Get the directory of the JSON file
-        json_dir = os.path.abspath(os.path.dirname(self.json_file))
-        audios_dir = os.path.join(json_dir, "audio_conversations")
-        slides_dir = os.path.join(json_dir, "slide_conversations")
-        video_dir = os.path.join(json_dir, "video_conversations")
-
-        # Create the audios directory if it doesn't exist
-        if not os.path.exists(audios_dir):
-            os.makedirs(audios_dir)
-
-        # Create the slides directory if it doesn't exist
-        if not os.path.exists(slides_dir):
-            os.makedirs(slides_dir)
-
-        # Create the videos directory if it doesn't exist
-        if not os.path.exists(video_dir):
-            os.makedirs(video_dir)
-            
-        language = self.conversations_data.language
-        language_code = LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE.get(language, LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE[config.default_language])  # Default to English
-
-        background_image = os.path.join(json_dir, "background.jpg")
-
-        # Iterate through each conversation line
-        for conversation in self.conversations_data.get_conversations():
-            self.generate_speech_per_conversation(conversation, audios_dir, language_code)
-            self.generate_slide_per_conversation(conversation, slides_dir, background_image)
-            self.generate_video_per_conversation_slide(conversation, video_dir, conversation.slide, conversation.audio, conversation.audio_length)
-
-
-    def generate_speech_per_conversation(self, conversation, audios_dir, language_code):
-        """
-        Process a single conversation line and synthesize speech.
-        :param conversation: A single conversation object.
-        :param audios_dir: Directory to save the audio file.
-        :param language_code: Language code for TTS synthesis.
-        """
-        order = conversation.order
-        text_to_speak = conversation.text
-        speaker = conversation.speaker.name
-        voice_name = self.speaker_to_voice.get(speaker, GENDER_TO_GOOGLE_TTS_VOICE_NAMES[config.default_speaker][0])  # Default to a neutral voice
-
-        # Generate the output file path inside the audios directory
-        audio_file = os.path.join(audios_dir, f"{order}_{speaker}.mp3")
-
-        # Call synthesize_speech
-        self.google_tts.synthesize_speech(
-            text=text_to_speak,
-            output_filename=audio_file,
-            voice_name=voice_name,
-            gender=conversation.speaker.gender.upper(),
-            language_code=language_code
-        )
-
-        audio = MP3(audio_file)
-        # Convert length to milliseconds
-        audio_length = int(audio.info.length * 1000)  # Length in milliseconds
-
-        conversation.audio_length = audio_length  # Update the conversation object with the audio length
-        conversation.audio = audio_file  # Update the conversation object with the audio file path
-
-        print(f"Synthesized speech for {order} : {speaker}: {text_to_speak} : {voice_name} : {audio_length} : {audio_file}")
-
-
-    def generate_slide_per_conversation(self, conversation, slides_dir, background_image):
-        """
-        Generate a slide for a single conversation.
-        :param conversation: A single conversation object.
-        :param slides_dir: Directory to save the generated slide.
-        :param background_image: Path to the background image.
-        """
-        order = conversation.order
-        speaker = conversation.speaker.name
-        text = conversation.text
-
-        # Create a new presentation
-        presentation = Presentation()
-        presentation.slide_width = Inches(13.33)  # 16 inches
-        presentation.slide_height = Inches(7.5)  # 9 inches
-
-        # Add a slide with a title and content
-        slide_layout = presentation.slide_layouts[1]  # Title and Content layout
-        slide = presentation.slides.add_slide(slide_layout)
-
-        # Set the background image for the slide
-        if os.path.exists(background_image):
-            # Add an image to the slide
-            left = top = 0
-            slide_width = presentation.slide_width
-            slide_height = presentation.slide_height
-            background_shape = slide.shapes.add_picture(
-                background_image, left, top, width=slide_width, height=slide_height
-            )
-            # Move the background image to the back
-            slide.shapes._spTree.remove(background_shape._element)
-            slide.shapes._spTree.insert(2, background_shape._element)  # use the number that does the appropriate job
-
-        # Set the title and content
-        title = slide.shapes.title
-        title.text = f"{speaker}"
-        content = slide.placeholders[1]
-
-        content.text_frame.paragraphs[0].text = text
-        content.text_frame.paragraphs[0].font.size = Pt(22)
-        content.text_frame.paragraphs[0].font.name = "Corbel"  # Set font to Corbel
-        content.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)  # Set text color to white
-        content.text_frame.paragraphs[0].font.bold = True
-        content.text_frame.paragraphs[0]._pPr.insert(0, etree.Element("{http://schemas.openxmlformats.org/drawingml/2006/main}buNone"))
-        content.text_frame.word_wrap = True  # Optional: Ensure text wraps within the placeholder
-        content.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-
-        # Set the font for the title as well
-        for paragraph in title.text_frame.paragraphs:
-            for run in paragraph.runs:
-                run.font.name = "Corbel"  # Set font to Corbel
-                run.font.color.rgb = RGBColor(255, 255, 255)  # Set text color to white
-                run.font.size = Pt(24)  # Set font size to 20
-
-        # Generate the output file path inside the slides directory
-        slide_file = os.path.join(slides_dir, f"{order}_{speaker}.pptx")
-
-        # Save the presentation
-        presentation.save(slide_file)
-
-        # Update the conversation object with the slide file path
-        conversation.slide = slide_file
-
-        print(f"Generated slide for {order}: {slide_file}")
-
-
-    def generate_video_per_conversation_slide(self, conversation, video_dir, slide_file, audio_file, audio_length):
-        """
-        Convert the slide to a video with audio.
-        :param video_dir: Directory to save the generated video.
-        :param slide_file: Path to the slide file (.pptx).
-        :param audio_file: Path to the audio file (.mp3).
-        :param audio_length: Length of the video in seconds (equal to the audio length).
-        """
-        # Ensure the video directory exists
-        if not os.path.exists(video_dir):
-            os.makedirs(video_dir)
-
-        # Generate the output video file path
-        video_file = os.path.join(video_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".avi")
-
-        # Save the slide as an image
-        slide_image_dir = os.path.abspath(os.path.dirname(slide_file))
+        """Process conversations and generate media files."""
+        json_dir = os.path.dirname(os.path.abspath(self.json_file))
         
-        if config.slide_generation_mode_pdf:
-            # Convert slide to pdf
-            try:
-                subprocess.run(
-                    [
-                        "soffice",
-                        "--headless",
-                        "--convert-to",
-                        "pdf",
-                        "--outdir",
-                        slide_image_dir,
-                        slide_file,
-                    ],
-                    check=True,
-                )
-            except subprocess.CalledProcessError as e:
-                print(f"Error converting slide to pdf: {e}")
-                return None
-            
-            slide_image_file_pdf = os.path.join(slide_image_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".pdf")
-            
-            # Check if the image file exists
-            if not os.path.exists(slide_image_file_pdf):
-                print(f"PDF file not found: {slide_image_file_pdf}")
-                return None
-            
-            slide_image_file = os.path.join(slide_image_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".png")
-               
-            # Convert PDF to images (high DPI = better quality)
-            images = convert_from_path(slide_image_file_pdf, dpi=900)
-            images[0].save(slide_image_file, 'PNG')
-        else:
-            # Convert slide to png
-            try:
-                subprocess.run(
-                    [
-                        "soffice",
-                        "--headless",
-                        "--convert-to",
-                        "png",
-                        "--outdir",
-                        slide_image_dir,
-                        slide_file,
-                    ],
-                    check=True,
-                )
-            except subprocess.CalledProcessError as e:
-                print(f"Error converting slide to image: {e}")
-                return None
-
-            slide_image_file = os.path.join(slide_image_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".png")
-            # To comment if generate PDF ================
-
-        # Check if the image file exists
-        if not os.path.exists(slide_image_file):
-            print(f"Image file not found: {slide_image_file}")
-            return None
-
-        # Load the image file and create an ImageClip
-        image_clip = ImageClip(img=slide_image_file, duration=(audio_length / 1000) + 1)  # Convert milliseconds to seconds
-        image_clip.write_videofile(video_file, fps=60, codec="png", audio=audio_file, audio_codec="aac")
-
-        # Clean up the temporary slide image
-        # if os.path.exists(slide_image_file):
-        #     os.remove(slide_image_file)
-
-        conversation.video = video_file  # Update the conversation object with the video file path
-
-        print(f"Generated video with audio: {video_file}")
-
-
-    def merge_conversation_videos(self):
-        """
-        Merge all conversation videos into one video.
-        :param conversations: List of Conversation objects.
-        :param output_video_file: Path to save the merged video.
-        """
-        video_clips = []
-        output_video_file = os.path.abspath(self.json_file).replace(".json", "conversations_merged_video.avi")
-
-        # Collect video clips from conversations
         for conversation in self.conversations_data.get_conversations():
-            if conversation.video and os.path.exists(conversation.video):
-                video_clips.append(VideoFileClip(conversation.video))
-            else:
-                print(f"Video not found for conversation {conversation.order}: {conversation.video}")
+            # Create necessary directories
+            audio_dir = os.path.join(json_dir, "audio_conversations")
+            slide_dir = os.path.join(json_dir, "slide_conversations")
+            video_dir = os.path.join(json_dir, "video_conversations")
+            
+            for directory in [audio_dir, slide_dir, video_dir]:
+                os.makedirs(directory, exist_ok=True)
 
-        # Merge all video clips
-        if video_clips:
-            final_video = concatenate_videoclips(video_clips, method="compose")
-            final_video.write_videofile(output_video_file, codec="png", audio_codec="aac", fps=60)
-            print(f"Merged video saved to {output_video_file}")
-        else:
-            print("No videos found to merge.")
-
-
-    def generate_speech_per_new_word(self, new_word, audios_dir, language_code):
-        """
-        Process each new word and synthesize speech.
-        :param new_words: List of NewWord objects.
-        :param audios_dir: Directory to save the audio files.
-        :param language_code: Language code for TTS synthesis.
-        """
-        order = getattr(new_word, 'order', 0)  # Default to 0 if 'order' is missing
-        word = getattr(new_word, 'word', None)
-        meaning = getattr(new_word, 'meaning', None)
-        example = getattr(new_word, 'example', None)
-        voice_name = self.speaker_to_voice.get(config.default_speaker, GENDER_TO_GOOGLE_TTS_VOICE_NAMES[config.default_speaker][0])  # Default to a neutral voice
-
-
-        # Combine the word, meaning, and example into a single text for speech synthesis
-        if order == 0 or word is None or meaning is None:
-            text_to_speak = f"{example}"
-        else:
-            text_to_speak = f"( … )( … ) {word}, ( … )( … ). Meaning ( … )( … ) {meaning} ( … ). Example ( … )( … )  {example}."
-
-        # Generate the output file path inside the audios directory
-        audio_file = os.path.join(audios_dir, f"new_word_{order}.mp3")
-
-        # Call synthesize_speech
-        self.google_tts.synthesize_speech(
-            text=text_to_speak,
-            output_filename=audio_file,
-            voice_name=GENDER_TO_GOOGLE_TTS_VOICE_NAMES[config.default_speaker][0],
-            gender=config.default_speaker,
-            language_code=language_code
-        )
-
-        audio = MP3(audio_file)
-        # Convert length to milliseconds
-        audio_length = int(audio.info.length * 1000)  # Length in milliseconds
-
-        new_word.audio = audio_file
-        new_word.audio_length = audio_length
-
-        print(f"Synthesized speech for new word {order} : {config.default_speaker}: {text_to_speak} : {voice_name} : {audio_length} : {audio_file}")
-
-    
-    def generate_slide_per_new_word(self, new_word, slides_dir, background_image):
-        """
-        Generate a slide for a single new word.
-        :param new_word: A single NewWord object.
-        :param slides_dir: Directory to save the generated slide.
-        :param background_image: Path to the background image.
-        """
-        order = getattr(new_word, 'order', 0)  # Default to 0 if 'order' is missing
-        word = getattr(new_word, 'word', None)
-        meaning = getattr(new_word, 'meaning', None)
-        example = getattr(new_word, 'example', None)
-
-        # Create a new presentation
-        presentation = Presentation()
-        presentation.slide_width = Inches(13.33)  # 16 inches
-        presentation.slide_height = Inches(7.5)  # 9 inches
-
-        # Add a slide with a title and content
-        slide_layout = presentation.slide_layouts[1]  # Title and Content layout
-        slide = presentation.slides.add_slide(slide_layout)
-
-        # Set the background image for the slide
-        if os.path.exists(background_image):
-            # Add an image to the slide
-            left = top = 0
-            slide_width = presentation.slide_width
-            slide_height = presentation.slide_height
-            background_shape = slide.shapes.add_picture(
-                background_image, left, top, width=slide_width, height=slide_height
+            # Generate speech
+            audio_file = os.path.join(audio_dir, f"{conversation.order}_{conversation.speaker.name}.{self.config.audio_format}")
+            audio_file, audio_length = self.speech_generator.generate_speech(
+                text=conversation.text,
+                output_file=audio_file,
+                voice_name=self.speaker_to_voice[conversation.speaker.name],
+                gender=conversation.speaker.gender.upper(),
+                language_code=self._get_language_code()
             )
-            # Move the background image to the back
-            slide.shapes._spTree.remove(background_shape._element)
-            slide.shapes._spTree.insert(2, background_shape._element)  # use the number that does the appropriate job
-
-        # Set the title and content
-        title = slide.shapes.title
-        if word != None:
-            title.text = f"{word}"
-        content = slide.placeholders[1]
-
-        # if meaning != None:
-        #     content.text_frame.paragraphs[0].text = f"\nMeaning: {meaning}\nExample: {example}"
-        # content.text_frame.paragraphs[0].font.size = Pt(22)
-        # content.text_frame.paragraphs[0].font.name = "Corbel"  # Set font to Corbel
-        # content.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)  # Set text color to white
-        # content.text_frame.paragraphs[0].font.bold = True
-        # content.text_frame.paragraphs[0]._pPr.insert(0, etree.Element("{http://schemas.openxmlformats.org/drawingml/2006/main}buNone"))
-        # content.text_frame.word_wrap = True  # Optional: Ensure text wraps within the placeholder
-        # content.text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT
-
-        content.text_frame.clear()  # Clear existing content
-
-        # Add a paragraph for the meaning
-        if meaning != None:
-            meaning_paragraph = content.text_frame.add_paragraph()
-            meaning_paragraph.text = "Meaning: "
-            meaning_run = meaning_paragraph.add_run()
-            meaning_run.text = meaning
-            meaning_run.font.italic = True  # Make only the meaning italic
-            meaning_paragraph.font.size = Pt(22)
-            meaning_paragraph.font.name = "Corbel"
-            meaning_paragraph.font.color.rgb = RGBColor(255, 255, 255)
-
-            # Add a paragraph for the example
-            example_paragraph = content.text_frame.add_paragraph()
-            example_paragraph.text = "Example: "
-            example_run = example_paragraph.add_run()
-            example_run.text = example
-            example_run.font.italic = True  # Make only the example italic
-            example_paragraph.font.size = Pt(22)
-            example_paragraph.font.name = "Corbel"
-            example_paragraph.font.color.rgb = RGBColor(255, 255, 255)
-
-        # Set the font for the title as well
-        for paragraph in title.text_frame.paragraphs:
-            for run in paragraph.runs:
-                run.font.name = "Corbel"  # Set font to Corbel
-                run.font.color.rgb = RGBColor(255, 255, 255)  # Set text color to white
-                run.font.size = Pt(24)  # Set font size to 20
-
-        # Generate the output file path inside the slides directory
-        slide_file = os.path.join(slides_dir, f"new_word_{order}.pptx")
-
-        # Save the presentation
-        presentation.save(slide_file)
-
-        # Update the new_word object with the slide file path
-        new_word.slide = slide_file
-
-        print(f"Generated slide for new word {order}: {slide_file}")
-
-
-    def generate_video_per_new_word_slide(self, new_word, video_dir, slide_file, audio_file, audio_length):
-        """
-        Convert the slide for a new word to a video with audio.
-        :param new_word: A single NewWord object.
-        :param video_dir: Directory to save the generated video.
-        :param slide_file: Path to the slide file (.pptx).
-        :param audio_file: Path to the audio file (.mp3).
-        :param audio_length: Length of the video in milliseconds (equal to the audio length).
-        """
-        # Ensure the video directory exists
-        if not os.path.exists(video_dir):
-            os.makedirs(video_dir)
-
-        # Generate the output video file path
-        video_file = os.path.join(video_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".mp4")
-
-        # Save the slide as an image
-        slide_image_dir = os.path.abspath(os.path.dirname(slide_file))
-
-        if config.slide_generation_mode_pdf:
-            try:
-                subprocess.run(
-                    [
-                        "soffice",
-                        "--headless",
-                        "--convert-to",
-                        "pdf",
-                        "--outdir",
-                        slide_image_dir,
-                        slide_file,
-                    ],
-                    check=True,
-                )
-            except subprocess.CalledProcessError as e:
-                print(f"Error converting slide to pdf: {e}")
-                return None
             
-            slide_image_file_pdf = os.path.join(slide_image_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".pdf")
+            # Generate slide
+            slide_file = os.path.join(slide_dir, f"{conversation.order}_{conversation.speaker.name}.pptx")
+            slide_file = self.slide_generator.create_slide(
+                title=conversation.speaker.name,
+                content=conversation.text,
+                background_image=self.conversations_data.get_conversations_background(),
+                output_file=slide_file
+            )
             
-            # Check if the image file exists
-            if not os.path.exists(slide_image_file_pdf):
-                print(f"PDF file not found: {slide_image_file_pdf}")
-                return None
+            # Generate video
+            video_file = os.path.join(video_dir, f"{conversation.order}_{conversation.speaker.name}.{self.config.video_format}")
+            video_file = self.video_generator.create_video(
+                slide_file=slide_file,
+                audio_file=audio_file,
+                audio_length=audio_length,
+                output_file=video_file
+            )
             
-            slide_image_file = os.path.join(slide_image_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".png")
-            
-            # Convert PDF to images (high DPI = better quality)
-            images = convert_from_path(slide_image_file_pdf, dpi=900)
-            images[0].save(slide_image_file, 'PNG')
-        else:
-            # Convert slide to png
-            try:
-                subprocess.run(
-                    [
-                        "soffice",
-                        "--headless",
-                        "--convert-to",
-                        "png",
-                        "--outdir",
-                        slide_image_dir,
-                        slide_file,
-                    ],
-                    check=True,
-                )
-            except subprocess.CalledProcessError as e:
-                print(f"Error converting slide to image: {e}")
-                return None
-
-            slide_image_file = os.path.join(slide_image_dir, os.path.splitext(os.path.basename(slide_file))[0] + ".png")
-
-        # Check if the image file exists
-        if not os.path.exists(slide_image_file):
-            print(f"Image file not found: {slide_image_file}")
-            return None
-        
-        # Load the image file and create an ImageClip
-        image_clip = ImageClip(img=slide_image_file, duration=(audio_length / 1000) + 1)  # Convert milliseconds to seconds
-        image_clip.write_videofile(video_file, fps=60, codec="png", audio=audio_file, audio_codec="aac")
-
-        # Clean up the temporary slide image
-        # if os.path.exists(slide_image_file):
-        #     os.remove(slide_image_file)
-
-        # Update the new_word object with the video file path
-        new_word.video = video_file
-
-        print(f"Generated video for new word {new_word.order}: {video_file}")
-
+            # Update conversation object
+            conversation.audio = audio_file
+            conversation.audio_length = audio_length
+            conversation.slide = slide_file
+            conversation.video = video_file
 
     def process_new_words(self):
-        """Process each new word and generate speech, slides, and videos."""
-        # Get the directory of the JSON file
-        json_dir = os.path.abspath(os.path.dirname(self.json_file))
-        audios_dir = os.path.join(json_dir, "audio_new_words")
-        slides_dir = os.path.join(json_dir, "slide_new_words")
-        video_dir = os.path.join(json_dir, "video_new_words")
-
-        # Create the directories if they don't exist
-        if not os.path.exists(audios_dir):
-            os.makedirs(audios_dir)
-        if not os.path.exists(slides_dir):
-            os.makedirs(slides_dir)
-        if not os.path.exists(video_dir):
-            os.makedirs(video_dir)
-
-        language = self.conversations_data.language
-        language_code = LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE.get(language, LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE[config.default_language])  # Default to English
-
-        background_image = os.path.join(json_dir, "background.jpg")
-
-        # Iterate through each new word
+        """Process new words and generate media files."""
+        json_dir = os.path.dirname(os.path.abspath(self.json_file))
+        
         for new_word in self.conversations_data.get_new_words():
-            # Generate speech for the new word
-            self.generate_speech_per_new_word(new_word, audios_dir, language_code)
+            # Create necessary directories
+            audio_dir = os.path.join(json_dir, "audio_new_words")
+            slide_dir = os.path.join(json_dir, "slide_new_words")
+            video_dir = os.path.join(json_dir, "video_new_words")
+            
+            for directory in [audio_dir, slide_dir, video_dir]:
+                os.makedirs(directory, exist_ok=True)
 
-            # Generate a slide for the new word
-            self.generate_slide_per_new_word(new_word, slides_dir, background_image)
+            # Prepare text for speech
+            text_to_speak = self._prepare_new_word_text(new_word)
 
-            # Generate a video for the new word
-            self.generate_video_per_new_word_slide(new_word, video_dir, new_word.slide, new_word.audio, new_word.audio_length)
+            # Generate speech
+            audio_file = os.path.join(audio_dir, f"new_word_{new_word.order}.{self.config.audio_format}")
+            audio_file, audio_length = self.speech_generator.generate_speech(
+                text=text_to_speak,
+                output_file=audio_file,
+                voice_name=GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker][0],
+                gender=self.config.default_speaker,
+                language_code=self._get_language_code()
+            )
 
+            # Generate slide
+            slide_file = os.path.join(slide_dir, f"new_word_{new_word.order}.pptx")
+            content = self._prepare_new_word_slide_content(new_word)
+            slide_file = self.slide_generator.create_slide(
+                title=new_word.word or "",
+                content=content,
+                background_image=self.conversations_data.get_new_words_background(),
+                output_file=slide_file
+            )
 
-    def merge_new_word_videos(self):
-        """
-        Merge all new word videos into one video.
-        """
-        video_clips = []
-        output_video_file = os.path.abspath(self.json_file).replace(".json", "_new_words_merged_video.mp4")
+            # Generate video
+            video_file = os.path.join(video_dir, f"new_word_{new_word.order}.{self.config.video_format}")
+            video_file = self.video_generator.create_video(
+                slide_file=slide_file,
+                audio_file=audio_file,
+                audio_length=audio_length,
+                output_file=video_file
+            )
 
-        # Collect video clips from new words
-        for new_word in self.conversations_data.get_new_words():
-            if new_word.video and os.path.exists(new_word.video):
-                video_clips.append(VideoFileClip(new_word.video))
+            # Update new word object
+            new_word.audio = audio_file
+            new_word.audio_length = audio_length
+            new_word.slide = slide_file
+            new_word.video = video_file
+
+    def _prepare_new_word_text(self, new_word) -> str:
+        """Prepare text for new word speech synthesis."""
+        if new_word.order == 0 or new_word.word is None or new_word.meaning is None:
+            return new_word.example
+        return f"( … ) {new_word.word}, ( … ). Meaning ( … ) {new_word.meaning} ( … ). Example ( … )  {new_word.example}."
+
+    def _prepare_new_word_slide_content(self, new_word) -> str:
+        """Prepare content for new word slide."""
+        if new_word.order == 0 or new_word.word is None or new_word.meaning is None:
+            return new_word.example
+        return f"Meaning: {new_word.meaning}\n\nExample: {new_word.example}"
+
+    def merge_videos(self):
+        """Merge all videos into final outputs."""
+        self._merge_conversation_videos()
+        self._merge_new_word_videos()
+        self._merge_all_videos()
+
+    def _merge_conversation_videos(self):
+        """Merge conversation videos into one video."""
+        output_file = os.path.splitext(self.json_file)[0] + "_conversations_merged_video.mp4"
+        self._merge_video_clips(
+            [conv.video for conv in self.conversations_data.get_conversations()],
+            output_file
+        )
+        self.conversations_data.merged_video_conversations = output_file
+
+    def _merge_new_word_videos(self):
+        """Merge new word videos into one video."""
+        output_file = os.path.splitext(self.json_file)[0] + "_new_words_merged_video.mp4"
+        self._merge_video_clips(
+            [word.video for word in self.conversations_data.get_new_words()],
+            output_file
+        )
+        self.conversations_data.merged_video_new_words = output_file
+
+    def _merge_all_videos(self):
+        """Merge all videos into one final video."""
+        output_file = os.path.splitext(self.json_file)[0] + "_merged_video.mp4"
+        videos = (
+            [conv.video for conv in self.conversations_data.get_conversations()] +
+            [word.video for word in self.conversations_data.get_new_words()]
+        )
+        self._merge_video_clips(videos, output_file)
+        self.conversations_data.merged_video_all = output_file
+
+    def _merge_video_clips(self, video_files: list, output_file: str):
+        """Merge multiple video files into one."""
+        clips = []
+        for video_file in video_files:
+            if video_file and os.path.exists(video_file):
+                clips.append(VideoFileClip(video_file))
             else:
-                print(f"Video not found for new word {new_word.order}: {new_word.video}")
+                print(f"Video file not found: {video_file}")
 
-        # Merge all video clips
-        if video_clips:
-            final_video = concatenate_videoclips(video_clips, method="compose")
-            final_video.write_videofile(output_video_file, codec="libx264", audio_codec="aac", fps=24)
-            print(f"Merged new words video saved to {output_video_file}")
-        else:
-            print("No videos found to merge for new words.")
-
-
-    def merge_all_videos(self):
-        """
-        Merge all conversation and new word videos into one video.
-        """
-        video_clips = []
-        output_video_file = os.path.abspath(self.json_file).replace(".json", "_merged_video.mp4")
-
-        # Collect video clips from conversations
-        for conversation in self.conversations_data.get_conversations():
-            if conversation.video and os.path.exists(conversation.video):
-                video_clips.append(VideoFileClip(conversation.video))
-            else:
-                print(f"Video not found for conversation {conversation.order}: {conversation.video}")
-
-        # Collect video clips from new words
-        for new_word in self.conversations_data.get_new_words():
-            if new_word.video and os.path.exists(new_word.video):
-                video_clips.append(VideoFileClip(new_word.video))
-            else:
-                print(f"Video not found for new word {new_word.order}: {new_word.video}")
-
-        # Merge all video clips
-        if video_clips:
-            final_video = concatenate_videoclips(video_clips, method="compose")
-            final_video.write_videofile(output_video_file, codec="libx264", audio_codec="aac", fps=24)
-            print(f"Merged all videos saved to {output_video_file}")
+        if clips:
+            final_video = concatenate_videoclips(clips, method="compose")
+            final_video.write_videofile(
+                output_file,
+                codec=f"{self.config.merged_video_codec}",
+                audio_codec=f"{self.config.merged_audio_codec}",
+                fps=self.config.merged_video_fps
+            )
+            print(f"Merged video saved to {output_file}")
         else:
             print("No videos found to merge.")
 
+    def save_decorated_data(self):
+        """Save the updated data to both JSON file and MongoDB if applicable."""
+        data = {
+            "document_id": self.conversations_data.get_document_id(),
+            "topic": self.conversations_data.topic,
+            "description": self.conversations_data.description,
+            "title": self.conversations_data.title,
+            "audience": self.conversations_data.audience,
+            "level": self.conversations_data.level,
+            "category": self.conversations_data.category,
+            "language": self.conversations_data.language,
+            "hashtags": self.conversations_data.hashtags,
+            "conversations_background": self.conversations_data.conversations_background,
+            "new_words_background": self.conversations_data.new_words_background,
+            "location": self.conversations_data.get_location(),
+            "merged_video_conversations": self.conversations_data.merged_video_conversations,
+            "merged_video_new_words": self.conversations_data.merged_video_new_words,
+            "merged_video_all": self.conversations_data.merged_video_all,
+            "youtube_video_url": getattr(self.conversations_data, 'youtube_video_url', None),
+            "thumbnail": getattr(self.conversations_data, 'thumbnail', None),
+            "speakers": {
+                name: {"gender": speaker.gender}
+                for name, speaker in self.conversations_data.speakers.items()
+            },
+            "conversations": [
+                {
+                    "order": conv.order,
+                    "speaker": conv.speaker.name,
+                    "text": conv.text,
+                    "slide": conv.slide,
+                    "video": conv.video,
+                    "audio_length": conv.audio_length,
+                    "audio": conv.audio
+                }
+                for conv in self.conversations_data.get_conversations()
+            ],
+            "new_words": [
+                {
+                    "order": word.order,
+                    "word": word.word,
+                    "meaning": word.meaning,
+                    "example": word.example,
+                    "slide": word.slide,
+                    "video": word.video,
+                    "audio_length": word.audio_length,
+                    "audio": word.audio
+                }
+                for word in self.conversations_data.get_new_words()
+            ]
+        }
 
-    def save_decorated_conversations_and_new_words(self):
+        # Save to JSON file
+        output_file = os.path.splitext(self.json_file)[0] + "_decorated.json"
+        with open(output_file, "w") as f:
+            json.dump(data, f, indent=4)
+        print(f"Updated data saved to {output_file}")
+
+        # If this was loaded from MongoDB, update the MongoDB document
+        document_id = self.conversations_data.get_document_id()
+        if document_id:
+            mongo_conn = None
+            try:
+                # Connect to MongoDB
+                mongo_conn = MongoDBConnection()
+                mongo_conn.connect()
+                
+                # Update the MongoDB document
+                try:
+                    mongo_conn.update_conversation(document_id, data)
+                    print(f"Successfully updated MongoDB document {document_id}")
+                except ValueError as ve:
+                    print(f"MongoDB Update Error - Invalid ID format: {ve}")
+                except RuntimeError as re:
+                    print(f"MongoDB Update Error - Connection issue: {re}")
+                except Exception as e:
+                    print(f"MongoDB Update Error: {str(e)}")
+            finally:
+                # Always disconnect if we connected
+                if mongo_conn:
+                    mongo_conn.disconnect()
+
+    def _clean_hashtags(self, hashtags: list) -> list:
         """
-        Save the updated conversations to a new JSON file with the name json_file_decorated.
+        Remove '#' symbol from the beginning of each hashtag if present.
+        
+        Args:
+            hashtags: List of hashtags that may or may not start with '#'
+            
+        Returns:
+            List of hashtags with '#' removed from the beginning
         """
-        # Load the original JSON data
-        with open(self.json_file, "r") as file:
-            data = json.load(file)
+        return [tag.lstrip('#') for tag in hashtags] if hashtags else []
 
-        # Update the conversations in the JSON data
-        data["conversations"] = [
-            {
-                "order": conversation.order,
-                "speaker": conversation.speaker.name,
-                "text": conversation.text,
-                "slide": conversation.slide,
-                "video": conversation.video,
-                "audio_length": conversation.audio_length,
-                "audio": conversation.audio
-            }
-            for conversation in self.conversations_data.get_conversations()
-        ]
+    def upload_thumbnail(self, video_id: str):
+        """
+        Upload a thumbnail for the YouTube video. If conversations_data has a thumbnail, use it;
+        otherwise, use the conversations background.
+        
+        Args:
+            video_id: The ID of the YouTube video to set thumbnail for
+            
+        Raises:
+            Exception: If both thumbnail and background image are not found or if upload fails
+        """
+        # First try to use thumbnail from conversations data
+        thumbnail_file = getattr(self.conversations_data, 'thumbnail', None)
+        
+        # If no specific thumbnail, use conversations background
+        if thumbnail_file is None or not os.path.exists(thumbnail_file):
+            thumbnail_file = self.conversations_data.get_conversations_background()
+            print(f"Specific thumbnail not found, using conversations background: {thumbnail_file}")
+        else:
+            print(f"Using specific thumbnail from conversations data: {thumbnail_file}")
+            
+        if thumbnail_file is None or not os.path.exists(thumbnail_file):
+            raise Exception("No valid thumbnail or background image found")
+            
+        try:
+            # Initialize YouTube configuration and uploader
+            youtube_config = YouTubeConfig()
+            uploader = YouTubeUploader(youtube_config.client_secrets_file)
+            uploader.authenticate()
+            
+            # Upload thumbnail
+            print(f"Uploading thumbnail from: {thumbnail_file}")
+            uploader.set_thumbnail(video_id, thumbnail_file)
+            print("Thumbnail uploaded successfully")
+        except Exception as e:
+            print(f"Error uploading thumbnail: {e}")
+            raise Exception(f"Error uploading thumbnail: {e}")
 
-        # Update the new_words in the JSON data
-        data["new_words"] = [
-            {
-                "order": new_word.order,
-                "word": new_word.word,
-                "meaning": new_word.meaning,
-                "example": new_word.example,
-                "slide": new_word.slide,
-                "video": new_word.video,
-                "audio_length": new_word.audio_length,
-                "audio": new_word.audio
-            }
-            for new_word in self.conversations_data.get_new_words()
-        ]
-
-        # Generate the new file name
-        decorated_file = os.path.splitext(self.json_file)[0] + "_decorated.json"
-
-        # Save the updated JSON data to the new file
-        with open(decorated_file, "w") as file:
-            json.dump(data, file, indent=4)
-
-        print(f"Updated conversations and new words saved to {decorated_file}")
-
-
-    def run(self):
+    def upload_to_youtube(self):
+        """
+        Upload the merged videos to YouTube and store the video URLs in the conversation data.
+        
+        Returns:
+            List of upload results containing video IDs and URLs
+            
+        Raises:
+            Exception: If video upload fails or merged video is not found
+        """
+        
+        # Initialize YouTube configuration
+        youtube_config = YouTubeConfig()
+        
+        # Initialize YouTube uploader
+        uploader = YouTubeUploader(youtube_config.client_secrets_file)
+        uploader.authenticate()
+        
+        # Upload videos
+        upload_results = []
+        
+        # Upload complete merged video
+        print(f"Uploading complete merged video: {self.conversations_data.merged_video_all}")   
+        if self.conversations_data.merged_video_all is not None and os.path.exists(self.conversations_data.merged_video_all):
+            try:
+                # Clean hashtags for tags and format for description
+                clean_tags = self._clean_hashtags(self.conversations_data.hashtags)
+                
+                result = uploader.upload_video(
+                    video_file=self.conversations_data.merged_video_all,
+                    title=self.conversations_data.title,
+                    description=self.conversations_data.description,
+                    tags=clean_tags,
+                    privacy_status=youtube_config.default_privacy_status,
+                    category_id=youtube_config.default_category_id,
+                    language=self._get_language_code()
+                )
+                upload_results.append(result)
+                
+                # Store the YouTube video URL in the conversation data
+                print(f"Upload result: {result}")
+                if result and 'video_url' in result:
+                    self.conversations_data.youtube_video_url = result['video_url']
+                    print(f"YouTube video URL: {result['video_url']}")
+                
+            except Exception as e:
+                print(f"Error uploading complete video: {e}")
+                raise Exception(f"Error uploading complete video: {e}")
+        else:
+            raise Exception(f"Merged video not found: {self.conversations_data.merged_video_all}")
+        
+        return upload_results
+    
+    def generate(self):
         """Run the entire text-to-speech processing pipeline."""
-        self.assign_voices_to_speakers()
         self.process_conversations()
-        self.merge_conversation_videos()
         self.process_new_words()
-        self.merge_new_word_videos()
-        self.merge_all_videos()
-        self.save_decorated_conversations_and_new_words()
+        self.merge_videos()
+        self.save_decorated_data()
+
+    def upload(self):
+        try:
+            # Upload video first
+            upload_results = self.upload_to_youtube()
+            self.save_decorated_data()  # Save to store the YouTube URL
+            
+            # Then set thumbnail if we have a video ID
+            if upload_results and upload_results[0] and 'video_id' in upload_results[0]:
+                self.upload_thumbnail(upload_results[0]['video_id'])
+                
+        except Exception as e:
+            print(f"Error in YouTube upload process: {e}")
+            raise

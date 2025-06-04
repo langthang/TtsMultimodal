@@ -40,9 +40,9 @@ class AppConfig:
         
         # Video Configuration
         self.video_format: str = self._get_env('VIDEO_FORMAT', 'mp4')
-        self.video_fps: int = int(self._get_env('VIDEO_FPS', '60'))
-        self.merged_video_fps: int = int(self._get_env('MERGED_VIDEO_FPS', '24'))
-        self.image_to_video_codec: str = self._get_env('IMAGE_TO_VIDEO_CODEC', 'png')
+        self.video_fps: int = int(self._get_env('VIDEO_FPS', '30'))
+        self.merged_video_fps: int = int(self._get_env('MERGED_VIDEO_FPS', '30'))
+        self.image_to_video_codec: str = self._get_env('IMAGE_TO_VIDEO_CODEC', 'libx264')
         self.merged_video_codec: str = self._get_env('MERGED_VIDEO_CODEC', 'libx264')
         
         # Path Configuration
@@ -53,15 +53,18 @@ class AppConfig:
 
         # Slide Generation Configuration
         self.slide_generation_mode_pdf: bool = self._get_env('SLIDE_GENERATION_MODE_PDF', 'false').lower() == 'true'
-        self.slide_title_font_size: int = int(self._get_env('SLIDE_TITLE_FONT_SIZE', '24'))
-        self.slide_content_font_size: int = int(self._get_env('SLIDE_CONTENT_FONT_SIZE', '22'))
-        self.slide_title_font_name: str = self._get_env('SLIDE_TITLE_FONT_NAME', 'Corbel')
-        self.slide_content_font_name: str = self._get_env('SLIDE_CONTENT_FONT_NAME', 'Corbel')
+        self.slide_title_font_size: int = int(self._get_env('SLIDE_TITLE_FONT_SIZE', '30'))
+        self.slide_content_font_size: int = int(self._get_env('SLIDE_CONTENT_FONT_SIZE', '28'))
+        self.slide_title_font_name: str = self._get_env('SLIDE_TITLE_FONT_NAME', 'Avenir')
+        self.slide_content_font_name: str = self._get_env('SLIDE_CONTENT_FONT_NAME', 'Avenir')
         self.slide_content_font_color: Tuple[int, int, int] = self._parse_rgb_color(
-            self._get_env('SLIDE_CONTENT_FONT_COLOR', '255,255,255')
+            self._get_env('SLIDE_CONTENT_FONT_COLOR', '0,0,0')
         )
         self.slide_title_font_color: Tuple[int, int, int] = self._parse_rgb_color(
-            self._get_env('SLIDE_TITLE_FONT_COLOR', '255,255,255')
+            self._get_env('SLIDE_TITLE_FONT_COLOR', '0,0,0')
+        )
+        self.slide_text_background_color: Tuple[int, int, int] = self._parse_rgb_color(
+            self._get_env('SLIDE_TEXT_BACKGROUND_COLOR', '166, 214, 214')
         )
         
         self._initialized = True

@@ -1,7 +1,6 @@
 import os
 import sys
 from TextToSpeechProcessor import TextToSpeechProcessor
-from TextToSpeechProcessor2 import TextToSpeechProcessor2
 from AppConfig import AppConfig
 
 def get_project_root():
@@ -26,7 +25,7 @@ def main():
         config = AppConfig()
         
         # Initialize the processor with the JSON file path
-        processor = TextToSpeechProcessor2(conversation_id_or_json_file)
+        processor = TextToSpeechProcessor(conversation_id_or_json_file)
         processor.upload()
         
     except ValueError as e:
