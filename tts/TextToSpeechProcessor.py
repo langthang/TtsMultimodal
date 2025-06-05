@@ -192,7 +192,7 @@ class TextToSpeechProcessor:
         """Prepare text for new word speech synthesis."""
         if new_word.order == 0 or new_word.word is None or new_word.meaning is None:
             return new_word.example
-        return f"{new_word.word}. Meaning: {new_word.meaning} ( … ). Example:  {new_word.example}."
+        return f"{new_word.word}. Meaning: {new_word.meaning}. Example:  {new_word.example}."
 
     def _prepare_new_word_slide_content(self, new_word) -> str:
         """Prepare content for new word slide."""
