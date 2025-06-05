@@ -439,12 +439,50 @@ class TextToSpeechProcessor:
         
         return upload_results
     
+
+    def delete_media_folders(self):
+        """Delete audio, slide, and video folders for both conversations and new words."""
+        json_dir = os.path.dirname(os.path.abspath(self.json_file))
+        
+        # Folders to delete
+        folders_to_delete = [
+            os.path.join(json_dir, "audio_conversations"),
+            os.path.join(json_dir, "slide_conversations"),
+            os.path.join(json_dir, "video_conversations"),
+            os.path.join(json_dir, "audio_new_words"),
+            os.path.join(json_dir, "slide_new_words"),
+            os.path.join(json_dir, "video_new_words")
+        ]
+        
+        for folder in folders_to_delete:
+            try:
+                if os.path.exists(folder):
+                    # Remove all files in the folder
+                    for file in os.listdir(folder):
+                        file_path = os.path.join(folder, file)
+                        try:
+                            if os.path.isfile(file_path):
+                                os.unlink(file_path)
+                            else:
+                                os.rmdir(file_path)  # Remove subdirectories if any
+                        except Exception as e:
+                            print(f"Error deleting {file_path}: {e}")
+                    
+                    # Remove the folder itself
+                    os.rmdir(folder)
+                    print(f"Successfully deleted folder: {folder}")
+                else:
+                    print(f"Folder does not exist: {folder}")
+            except Exception as e:
+                print(f"Error deleting folder {folder}: {e}")
+
     def generate(self):
         """Run the entire text-to-speech processing pipeline."""
         self.process_conversations()
         self.process_new_words()
         self.merge_videos()
         self.save_decorated_data()
+        self.delete_media_folders()
 
     def upload(self):
         try:
