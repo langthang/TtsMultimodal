@@ -46,7 +46,7 @@ class YouTubeUploader:
                 print("Fetching new tokens...")
                 flow = InstalledAppFlow.from_client_secrets_file(
                     self.client_secrets_file, self.SCOPES)
-                self.credentials = flow.run_local_server(port=0)
+                self.credentials = flow.run_local_server(open_browser=False, bind_addr="0.0.0.0", port=8080)
             
             # Save the credentials for the next run
             with open(token_file, "wb") as token:
