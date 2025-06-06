@@ -235,25 +235,86 @@ class TextToSpeechProcessor:
         self.conversations_data.merged_video_all = output_file
 
     def _merge_video_clips(self, video_files: list, output_file: str):
-        """Merge multiple video files into one."""
-        clips = []
-        for video_file in video_files:
-            if video_file and os.path.exists(video_file):
-                clips.append(VideoFileClip(video_file))
-            else:
-                print(f"Video file not found: {video_file}")
-
-        if clips:
-            final_video = concatenate_videoclips(clips, method="compose")
-            final_video.write_videofile(
-                output_file,
-                codec=f"{self.config.merged_video_codec}",
-                audio_codec=f"{self.config.merged_audio_codec}",
-                fps=self.config.merged_video_fps
-            )
-            print(f"Merged video saved to {output_file}")
-        else:
+        """Merge multiple video files into one, processing in batches of 10 clips."""
+        if not video_files:
             print("No videos found to merge.")
+            return
+
+        print(f"Merging {len(video_files)} videos into {output_file}")
+        # Create a temporary directory for intermediate files
+        temp_dir = os.path.join(os.path.dirname(output_file), "temp_merges")
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_files = []
+
+        try:
+            # Process videos in batches of 10
+            batch_size = 3
+            for i in range(0, len(video_files), batch_size):
+                batch = video_files[i:i + batch_size]
+                clips = []
+                
+                # Load clips for this batch
+                for video_file in batch:
+                    if video_file and os.path.exists(video_file):
+                        clips.append(VideoFileClip(video_file))
+                    else:
+                        print(f"Video file not found: {video_file}")
+
+                if clips:
+                    # Create temporary file for this batch
+                    temp_output = os.path.join(temp_dir, f"temp_merge_{i//batch_size}.mp4")
+                    print(f"Creating temporary file: {temp_output}")
+                    temp_files.append(temp_output)
+
+                    # Merge batch and write to temporary file
+                    batch_video = concatenate_videoclips(clips, method="compose")
+                    batch_video.write_videofile(
+                        temp_output,
+                        codec=f"{self.config.merged_video_codec}",
+                        audio_codec=f"{self.config.merged_audio_codec}",
+                        fps=self.config.merged_video_fps
+                    )
+                    print(f"Batch {i//batch_size + 1} merged to temporary file: {temp_output}")
+
+                    # Close clips to free memory
+                    for clip in clips:
+                        clip.close()
+                    batch_video.close()
+
+            # If we have multiple temporary files, merge them
+            if len(temp_files) > 1:
+                final_clips = [VideoFileClip(f) for f in temp_files]
+                final_video = concatenate_videoclips(final_clips, method="compose")
+                final_video.write_videofile(
+                    output_file,
+                    codec=f"{self.config.merged_video_codec}",
+                    audio_codec=f"{self.config.merged_audio_codec}",
+                    fps=self.config.merged_video_fps
+                )
+                print(f"Final merged video saved to {output_file}")
+
+                # Close final clips
+                for clip in final_clips:
+                    clip.close()
+                final_video.close()
+            elif len(temp_files) == 1:
+                # If only one batch, just rename the temporary file
+                os.rename(temp_files[0], output_file)
+                print(f"Single batch video saved to {output_file}")
+
+        finally:
+            # Clean up temporary files and directory
+            for temp_file in temp_files:
+                if os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                    except Exception as e:
+                        print(f"Error removing temporary file {temp_file}: {e}")
+            
+            try:
+                os.rmdir(temp_dir)
+            except Exception as e:
+                print(f"Error removing temporary directory {temp_dir}: {e}")
 
     def save_decorated_data(self):
         """Save the updated data to both JSON file and MongoDB if applicable."""
