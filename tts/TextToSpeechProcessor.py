@@ -208,30 +208,59 @@ class TextToSpeechProcessor:
 
     def _merge_conversation_videos(self):
         """Merge conversation videos into one video."""
-        output_file = os.path.splitext(self.json_file)[0] + "_conversations_merged_video.mp4"
-        self._merge_video_clips(
-            [conv.video for conv in self.conversations_data.get_conversations()],
-            output_file
-        )
+        conversations = self.conversations_data.get_conversations()
+        
+        if not conversations:
+            output_file = "EMPTY"
+        else:
+            output_file = os.path.splitext(self.json_file)[0] + "_conversations_merged_video.mp4"
+            self._merge_video_clips(
+                [conv.video for conv in conversations],
+                output_file
+            )
+        
         self.conversations_data.merged_video_conversations = output_file
 
     def _merge_new_word_videos(self):
         """Merge new word videos into one video."""
-        output_file = os.path.splitext(self.json_file)[0] + "_new_words_merged_video.mp4"
-        self._merge_video_clips(
-            [word.video for word in self.conversations_data.get_new_words()],
-            output_file
-        )
+        new_words = self.conversations_data.get_new_words()
+        
+        if not new_words:
+            output_file = "EMPTY"
+        else:
+            output_file = os.path.splitext(self.json_file)[0] + "_new_words_merged_video.mp4"
+            self._merge_video_clips(
+                [word.video for word in new_words],
+                output_file
+            )
+        
         self.conversations_data.merged_video_new_words = output_file
 
     def _merge_all_videos(self):
         """Merge all videos into one final video."""
         output_file = os.path.splitext(self.json_file)[0] + "_merged_video.mp4"
-        videos = (
-            [conv.video for conv in self.conversations_data.get_conversations()] +
-            [word.video for word in self.conversations_data.get_new_words()]
-        )
-        self._merge_video_clips(videos, output_file)
+        
+        # Get conversations and new words
+        conversations = self.conversations_data.get_conversations()
+        new_words = self.conversations_data.get_new_words()
+        
+        # Collect valid videos
+        videos = []
+        
+        # Add conversation videos if they exist
+        if conversations:
+            videos.extend([conv.video for conv in conversations])
+            
+        # Add new word videos if they exist
+        if new_words:
+            videos.extend([word.video for word in new_words])
+            
+        # If no valid videos, set output to EMPTY
+        if not videos:
+            output_file = "EMPTY"
+        else:
+            self._merge_video_clips(videos, output_file)
+            
         self.conversations_data.merged_video_all = output_file
 
     def _merge_video_clips(self, video_files: list, output_file: str):
