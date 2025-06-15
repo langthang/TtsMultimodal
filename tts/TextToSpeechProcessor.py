@@ -264,7 +264,7 @@ class TextToSpeechProcessor:
         self.conversations_data.merged_video_all = output_file
 
     def _merge_video_clips(self, video_files: list, output_file: str):
-        """Merge multiple video files into one, processing in batches of 10 clips."""
+        """Merge multiple video files into one."""
         if not video_files:
             print("No videos found to merge.")
             return
@@ -276,8 +276,8 @@ class TextToSpeechProcessor:
         temp_files = []
 
         try:
-            # Process videos in batches of 10
-            batch_size = 3
+            # Process videos in batches
+            batch_size = self.config.video_batch_size
             for i in range(0, len(video_files), batch_size):
                 batch = video_files[i:i + batch_size]
                 clips = []
