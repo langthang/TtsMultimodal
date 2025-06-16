@@ -45,6 +45,7 @@ class AppConfig:
         self.image_to_video_codec: str = self._get_env('IMAGE_TO_VIDEO_CODEC', 'libx264')
         self.merged_video_codec: str = self._get_env('MERGED_VIDEO_CODEC', 'libx264')
         self.video_batch_size: int = int(self._get_env('VIDEO_BATCH_SIZE', '10'))
+        self.use_v2_merge: bool = self._get_env('USE_V2_MERGE', 'false').lower() == 'true'
         
         # Path Configuration
         self.output_dir: str = self._get_env('OUTPUT_DIR', os.path.join(self.project_root, 'data'))
@@ -54,15 +55,15 @@ class AppConfig:
 
         # Slide Generation Configuration
         self.slide_generation_mode_pdf: bool = self._get_env('SLIDE_GENERATION_MODE_PDF', 'false').lower() == 'true'
-        self.slide_title_font_size: int = int(self._get_env('SLIDE_TITLE_FONT_SIZE', '30'))
-        self.slide_content_font_size: int = int(self._get_env('SLIDE_CONTENT_FONT_SIZE', '28'))
+        self.slide_title_font_size: int = int(self._get_env('SLIDE_TITLE_FONT_SIZE', '26'))
+        self.slide_content_font_size: int = int(self._get_env('SLIDE_CONTENT_FONT_SIZE', '24'))
         self.slide_title_font_name: str = self._get_env('SLIDE_TITLE_FONT_NAME', 'Avenir')
         self.slide_content_font_name: str = self._get_env('SLIDE_CONTENT_FONT_NAME', 'Avenir')
         self.slide_content_font_color: Tuple[int, int, int] = self._parse_rgb_color(
-            self._get_env('SLIDE_CONTENT_FONT_COLOR', '0,0,0')
+            self._get_env('SLIDE_CONTENT_FONT_COLOR', '255,255,255')
         )
         self.slide_title_font_color: Tuple[int, int, int] = self._parse_rgb_color(
-            self._get_env('SLIDE_TITLE_FONT_COLOR', '0,0,0')
+            self._get_env('SLIDE_TITLE_FONT_COLOR', '255,255,255')
         )
         self.slide_text_background_color: Tuple[int, int, int] = self._parse_rgb_color(
             self._get_env('SLIDE_TEXT_BACKGROUND_COLOR', '166, 214, 214')
