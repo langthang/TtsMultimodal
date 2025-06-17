@@ -44,8 +44,9 @@ class AppConfig:
         self.merged_video_fps: int = int(self._get_env('MERGED_VIDEO_FPS', '30'))
         self.image_to_video_codec: str = self._get_env('IMAGE_TO_VIDEO_CODEC', 'libx264')
         self.merged_video_codec: str = self._get_env('MERGED_VIDEO_CODEC', 'libx264')
-        self.video_batch_size: int = int(self._get_env('VIDEO_BATCH_SIZE', '10'))
+        self.video_batch_size: int = int(self._get_env('VIDEO_BATCH_SIZE', '6'))
         self.use_v2_merge: bool = self._get_env('USE_V2_MERGE', 'false').lower() == 'true'
+        self.use_v2_merge_all: bool = self._get_env('USE_V2_MERGE_ALL', 'false').lower() == 'true'
         
         # Path Configuration
         self.output_dir: str = self._get_env('OUTPUT_DIR', os.path.join(self.project_root, 'data'))
