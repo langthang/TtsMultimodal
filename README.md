@@ -6,6 +6,9 @@ sudo apt install libreoffice
 brew install poppler
 sudo apt-get install poppler-utils
 
+brew install ffmpeg
+sudo apt-get install ffmpeg
+
 # Text-to-Speech Video Generator
 
 This application processes conversation data to generate videos with text-to-speech narration and uploads them to YouTube.

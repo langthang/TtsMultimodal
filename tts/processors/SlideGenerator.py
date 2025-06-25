@@ -37,6 +37,9 @@ class SlideGenerator:
         if title:
             self._add_title(slide, title)
 
+        # Add logo to the top right
+        self._add_logo(slide)
+
         # Save presentation
         presentation.save(output_file)
         return output_file
@@ -155,6 +158,23 @@ class SlideGenerator:
 
             # Remove bullet points and align text properly
             p._pPr.insert(0, etree.Element("{http://schemas.openxmlformats.org/drawingml/2006/main}buNone"))
+
+
+    def _add_logo(self, slide):
+        """Add a small logo to the top right of the slide."""
+        logo_path = os.path.join(os.path.dirname(__file__), "..", "logo", "logo-nobg-2.png")
+        logo_path = os.path.abspath(logo_path)
+        if not os.path.exists(logo_path):
+            print(f"Logo file not found: {logo_path}")
+            return
+        # Set logo size and margin
+        logo_width = Inches(1.5)
+        logo_height = Inches(1.5)
+        margin = Inches(0.2)
+        left = self.slide_width - logo_width - margin
+        top = margin
+        slide.shapes.add_picture(logo_path, left, top, width=logo_width, height=logo_height)
+
 
     def SubElement(self, parent, tagname, **kwargs):
         element = OxmlElement(tagname)
@@ -342,3 +362,4 @@ class SlideGenerator:
         # Set tile rectangle
         tileRect = self.SubElement(gradFill, 'a:tileRect')
 
+   

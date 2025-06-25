@@ -28,14 +28,16 @@ LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE = {
 }
 
 class TextToSpeechProcessor:
-    def __init__(self, source: Union[str, dict]):
+    def __init__(self, source: Union[str, dict], speaking_rate: float = 1.0):
         """
         Initialize the processor with either a JSON file path or MongoDB document ID.
         
         Args:
             source: Either a JSON file path (str ending with .json) or MongoDB document ID (str)
+            speaking_rate: Speaking rate for TTS (default 1.0)
         """
         self.config = AppConfig()
+        self.speaking_rate = speaking_rate
         
         # Initialize processors
         google_tts = GoogleTextToSpeech()
@@ -106,11 +108,13 @@ class TextToSpeechProcessor:
             # Generate speech
             audio_file = os.path.join(audio_dir, f"{conversation.order}_{conversation.speaker.name}.{self.config.audio_format}")
             audio_file, audio_length = self.speech_generator.generate_speech(
+                sleep = getattr(conversation, "sleep", 0),
                 text=conversation.text,
                 output_file=audio_file,
                 voice_name=self.speaker_to_voice[conversation.speaker.name],
                 gender=conversation.speaker.gender.upper(),
-                language_code=self._get_language_code()
+                language_code=self._get_language_code(),
+                speaking_rate=self.speaking_rate
             )
             
             # Generate slide
@@ -156,11 +160,13 @@ class TextToSpeechProcessor:
             # Generate speech
             audio_file = os.path.join(audio_dir, f"new_word_{new_word.order}.{self.config.audio_format}")
             audio_file, audio_length = self.speech_generator.generate_speech(
+                sleep = getattr(new_word, "sleep", 0),
                 text=text_to_speak,
                 output_file=audio_file,
                 voice_name=GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker][0],
                 gender=self.config.default_speaker,
-                language_code=self._get_language_code()
+                language_code=self._get_language_code(),
+                speaking_rate=self.speaking_rate
             )
 
             # Generate slide

@@ -5,7 +5,7 @@ from database.MongoDBConnection import MongoDBConnection
 
 class Conversation:
     """Represents a single conversation line."""
-    def __init__(self, order: int, speaker: 'Speaker', text: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None):
+    def __init__(self, order: int, speaker: 'Speaker', text: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None, sleep: Optional[int] = None):
         """
         Initialize a Conversation object.
         :param order: The order of the conversation.
@@ -15,6 +15,7 @@ class Conversation:
         :param video: Path to the video file (optional).
         :param audio_length: Length of the audio in seconds (optional).
         :param audio: Path to the audio file (optional).
+        :param sleep: Seconds of silence to append after the audio (optional).
         """
         self.order = order
         self.speaker = speaker
@@ -23,15 +24,16 @@ class Conversation:
         self.video = video  # Path to the video file
         self.audio_length = audio_length  # Length of the audio in seconds
         self.audio = audio  # Path to the audio file
+        self.sleep = sleep  # Seconds of silence to append after the audio
 
     def __repr__(self):
         return (f"Conversation(order={self.order}, speaker={self.speaker}, text='{self.text}', "
-                f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}')")
+                f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}', sleep={self.sleep})")
 
 
 class NewWord:
     """Represents a single new word entry."""
-    def __init__(self, order: int, word: str, meaning: str, example: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None):
+    def __init__(self, order: int, word: str, meaning: str, example: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None, sleep: Optional[int] = None):
         self.order = order
         self.word = word
         self.meaning = meaning
@@ -40,10 +42,11 @@ class NewWord:
         self.video = video  # Path to the video file
         self.audio_length = audio_length  # Length of the audio in seconds
         self.audio = audio  # Path to the audio file
+        self.sleep = sleep  # Seconds of silence to append after the audio
 
     def __repr__(self):
         return (f"NewWord(order={self.order}, word='{self.word}', meaning='{self.meaning}', example='{self.example}', "
-                f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}')")
+                f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}', sleep={self.sleep})")
 
 
 class Speaker:
@@ -116,7 +119,8 @@ class Conversations:
                 slide=conv.get("slide"),
                 video=conv.get("video"),
                 audio_length=conv.get("audio_length"),
-                audio=conv.get("audio")
+                audio=conv.get("audio"),
+                sleep=conv.get("sleep") 
             )
             for conv in data.get("conversations", [])
         ]
@@ -131,7 +135,8 @@ class Conversations:
                 slide=word.get("slide"),
                 video=word.get("video"),
                 audio_length=word.get("audio_length"),
-                audio=word.get("audio")
+                audio=word.get("audio"),
+                sleep=word.get("sleep")
             )
             for word in data.get("new_words", [])
         ]

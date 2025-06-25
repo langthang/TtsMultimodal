@@ -10,7 +10,8 @@ class GoogleTextToSpeech(TextToSpeechService):
         output_filename: str, 
         voice_name: str = "en-US-Wavenet-F", 
         gender: str = "FEMALE", 
-        language_code: str = "en-US"
+        language_code: str = "en-US",
+        speaking_rate: float = 1.0
     ):
         # Initialize the Text-to-Speech client
         client = texttospeech.TextToSpeechClient()
@@ -34,7 +35,8 @@ class GoogleTextToSpeech(TextToSpeechService):
 
         # Configure the audio settings
         audio_config = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3  # Output format
+            audio_encoding=texttospeech.AudioEncoding.MP3,  # Output format
+            speaking_rate=speaking_rate
         )
 
         # Synthesize speech

@@ -12,8 +12,8 @@ def main():
     """Main entry point of the application."""
     try:
         # Check for command-line argument
-        if len(sys.argv) < 2:
-            print("Usage: python Main.py <conversation_id_or_json_file>")
+        if len(sys.argv) <= 2:
+            print("Usage: python Main.py <conversation_id_or_json_file> [speaking_rate]")
             return
         
         conversation_id_or_json_file = sys.argv[1]
@@ -21,11 +21,19 @@ def main():
             print(f"JSON file not found: {conversation_id_or_json_file}")
             return
 
+        # Read speaking_rate from sys.argv if provided
+        speaking_rate = 1.0
+        if len(sys.argv) > 2:
+            try:
+                speaking_rate = float(sys.argv[2])
+            except ValueError:
+                print(f"Invalid speaking_rate '{sys.argv[2]}', using default 1.0")
+
         # Initialize configuration
         config = AppConfig()
         
-        # Initialize the processor with the JSON file path
-        processor = TextToSpeechProcessor(conversation_id_or_json_file)
+        # Initialize the processor with the JSON file path and speaking_rate
+        processor = TextToSpeechProcessor(conversation_id_or_json_file, speaking_rate=speaking_rate)
         processor.generate()
         
     except ValueError as e:
