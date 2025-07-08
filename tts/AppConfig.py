@@ -70,6 +70,7 @@ class AppConfig:
             self._get_env('SLIDE_TEXT_BACKGROUND_COLOR', '166, 214, 214')
         )
         
+        self.enable_slide_title: bool = self._get_env('ENABLE_SLIDE_TITLE', 'true').lower() == 'true'
         self._initialized = True
 
     def _get_project_root(self) -> str:

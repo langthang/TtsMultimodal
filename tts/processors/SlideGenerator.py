@@ -34,7 +34,7 @@ class SlideGenerator:
         # Add content
         if content:
             self._add_content(slide, content)
-        if title:
+        if title and self.config.enable_slide_title:
             self._add_title(slide, title)
 
         # Add logo to the top right
