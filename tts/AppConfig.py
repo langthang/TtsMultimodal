@@ -71,6 +71,8 @@ class AppConfig:
         )
         
         self.enable_slide_title: bool = self._get_env('ENABLE_SLIDE_TITLE', 'true').lower() == 'true'
+        self.database_name: str = self._get_env('MONGODB_DATABASE', 'daily-conversation')
+
         self._initialized = True
 
     def _get_project_root(self) -> str:

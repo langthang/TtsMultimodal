@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.collection import Collection
 from bson import ObjectId
+from AppConfig import AppConfig
 
 class MongoDBConnection:
     """MongoDB connection manager class."""
@@ -23,10 +24,11 @@ class MongoDBConnection:
         self.client: Optional[MongoClient] = None
         self.db: Optional[Database] = None
         self.collection: Optional[Collection] = None
+        self.config = AppConfig()
         self._initialized = True
 
     def connect(self, connection_string: str = "mongodb://localhost:27017/", 
-                database: str = "daily-conversation",
+                database: str = None,
                 collection: str = "conversations") -> None:
         """
         Connect to MongoDB and set up database and collection.
@@ -36,6 +38,11 @@ class MongoDBConnection:
             database: Database name
             collection: Collection name
         """
+
+         # Load database name from environment if not provided
+        if database is None:
+            database = self.config.database_name
+
         try:
             print(f"Attempting to connect to MongoDB with: {connection_string}")
             self.client = MongoClient(connection_string)
