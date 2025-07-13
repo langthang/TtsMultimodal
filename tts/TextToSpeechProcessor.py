@@ -470,7 +470,62 @@ class TextToSpeechProcessor:
                     os.rmdir(temp_dir)
                 except Exception as e:
                     print(f"Error removing temporary directory {temp_dir}: {e}")
-                
+
+    def add_background_music_to_merged_video(self):
+        """
+        Mix background music into the merged video, keeping original sound and overriding output_file.
+        Uses BACKGROUND_MUSIC_FILE and BACKGROUND_MUSIC_VOLUME from AppConfig/env.
+        """
+        music_file = self.config.background_music_file
+        music_volume = float(self.config.background_music_volume)
+        output_file = os.path.splitext(self.json_file)[0] + "_merged_video.mp4"
+
+        if not music_file or not os.path.exists(music_file):
+            print(f"Background music file not found: {music_file}")
+            return
+
+        if not os.path.exists(output_file):
+            print(f"Merged video not found: {output_file}")
+            return
+
+        video = VideoFileClip(output_file)
+        music_audio = AudioFileClip(music_file).with_effects([afx.MultiplyVolume(music_volume)])
+
+        # bg_music_duration = music_audio.duration
+        # video_duration = video.duration
+        #
+        # if bg_music_duration < video_duration:
+        #     # Loop the background music
+        #     loop_count = int(video_duration // bg_music_duration) + 1
+        #     bg_music_clips = [music_audio] * loop_count
+        #     music_audio = concatenate_audioclips(bg_music_clips)
+
+        # # Combine original video audio and background music
+        # final_audio = CompositeAudioClip([video.audio, music_audio])
+        # final_audio.duration = video_duration
+
+        # Ensure background music is long enough
+        if music_audio.duration < video.duration:
+            loops = int(video.duration // music_audio.duration) + 1
+            music_audio = music_audio.fx(lambda clip: clip.loop(n=loops))
+
+        #Cut background music to fit video duration
+        music_audio = music_audio.subclipped(0, video.duration)
+
+        #Combine original video audio and background music
+        final_audio = CompositeAudioClip([video.audio, music_audio])
+
+        # Set final audio to video
+        video_with_music = video.with_audio(final_audio)
+
+        video_with_music.write_videofile(output_file, codec=f"{self.config.merged_video_codec}",
+                    audio_codec=f"{self.config.merged_audio_codec}",
+                    fps=self.config.merged_video_fps)
+        
+        video.close()
+        video_with_music.close()
+        print(f"Video with background music saved to {output_file}")            
+    
     def save_decorated_data(self):
         """Save the updated data to both JSON file and MongoDB if applicable."""
         data = {
@@ -654,7 +709,6 @@ class TextToSpeechProcessor:
             raise Exception(f"Merged video not found: {self.conversations_data.merged_video_all}")
         
         return upload_results
-    
 
     def delete_media_folders(self):
         """Delete audio, slide, and video folders for both conversations and new words."""
@@ -694,11 +748,14 @@ class TextToSpeechProcessor:
 
     def generate(self):
         """Run the entire text-to-speech processing pipeline."""
-        self.process_conversations()
-        self.process_new_words()
-        self.merge_videos()
+        # self.process_conversations()
+        # self.process_new_words()
+        # self.merge_videos()
+        if self.config.enable_background_music:
+            print("Adding background music to merged video")
+            self.add_background_music_to_merged_video()
         self.save_decorated_data()
-        self.delete_media_folders()
+        #self.delete_media_folders()
 
     def upload(self):
         try:

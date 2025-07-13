@@ -48,6 +48,11 @@ class AppConfig:
         self.use_v2_merge: bool = self._get_env('USE_V2_MERGE', 'false').lower() == 'true'
         self.use_v2_merge_all: bool = self._get_env('USE_V2_MERGE_ALL', 'false').lower() == 'true'
         
+        # Background Music Configuration
+        self.enable_background_music: bool = self._get_env('ENABLE_BACKGROUND_MUSIC', 'false').lower() == 'true'
+        self.background_music_file = self._get_env('BACKGROUND_MUSIC_FILE', None)
+        self.background_music_volume = float(self._get_env('BACKGROUND_MUSIC_VOLUME', '0.15'))
+        
         # Path Configuration
         self.output_dir: str = self._get_env('OUTPUT_DIR', os.path.join(self.project_root, 'data'))
         self.temp_dir: str = self._get_env('TEMP_DIR', os.path.join(self.project_root, 'temp'))
