@@ -748,14 +748,14 @@ class TextToSpeechProcessor:
 
     def generate(self):
         """Run the entire text-to-speech processing pipeline."""
-        # self.process_conversations()
-        # self.process_new_words()
-        # self.merge_videos()
+        self.process_conversations()
+        self.process_new_words()
+        self.merge_videos()
         if self.config.enable_background_music:
             print("Adding background music to merged video")
             self.add_background_music_to_merged_video()
         self.save_decorated_data()
-        #self.delete_media_folders()
+        self.delete_media_folders()
 
     def upload(self):
         try:
