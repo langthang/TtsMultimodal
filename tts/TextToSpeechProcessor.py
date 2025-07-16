@@ -754,6 +754,9 @@ class TextToSpeechProcessor:
         if self.config.enable_background_music:
             print("Adding background music to merged video")
             self.add_background_music_to_merged_video()
+            print("Finished adding background music to merged video")
+        else:
+            print("Background music is disabled, skipping addition to merged video")
         self.save_decorated_data()
         self.delete_media_folders()
 
