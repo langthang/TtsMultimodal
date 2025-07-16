@@ -50,7 +50,7 @@ class AppConfig:
         
         # Background Music Configuration
         self.enable_background_music: bool = self._get_env('ENABLE_BACKGROUND_MUSIC', 'false').lower() == 'true'
-        self.background_music_file = self._get_env('BACKGROUND_MUSIC_FILE', None)
+        self.background_music_file = self._get_env('BACKGROUND_MUSIC_FILE', "NONE")
         self.background_music_volume = float(self._get_env('BACKGROUND_MUSIC_VOLUME', '0.15'))
         
         # Path Configuration

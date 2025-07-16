@@ -480,7 +480,7 @@ class TextToSpeechProcessor:
         music_volume = float(self.config.background_music_volume)
         output_file = os.path.splitext(self.json_file)[0] + "_merged_video.mp4"
 
-        if not music_file or not os.path.exists(music_file):
+        if not music_file or music_file is "NONE"  or not os.path.exists(music_file):
             print(f"Background music file not found: {music_file}")
             return
 
