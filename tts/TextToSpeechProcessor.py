@@ -494,20 +494,20 @@ class TextToSpeechProcessor:
         # bg_music_duration = music_audio.duration
         # video_duration = video.duration
         #
-        # if bg_music_duration < video_duration:
-        #     # Loop the background music
-        #     loop_count = int(video_duration // bg_music_duration) + 1
-        #     bg_music_clips = [music_audio] * loop_count
-        #     music_audio = concatenate_audioclips(bg_music_clips)
+        if music_audio.duration < video.duration:
+            # Loop the background music
+            loop_count = int(video.duration // music_audio.duration) + 1
+            bg_music_clips = [music_audio] * loop_count
+            music_audio = concatenate_audioclips(bg_music_clips)
 
         # # Combine original video audio and background music
         # final_audio = CompositeAudioClip([video.audio, music_audio])
         # final_audio.duration = video_duration
 
         # Ensure background music is long enough
-        if music_audio.duration < video.duration:
-            loops = int(video.duration // music_audio.duration) + 1
-            music_audio = music_audio.fx(lambda clip: clip.loop(n=loops))
+        # if music_audio.duration < video.duration:
+        #     loops = int(video.duration // music_audio.duration) + 1
+        #     music_audio = music_audio.fx(lambda clip: clip.loop(n=loops))
 
         #Cut background music to fit video duration
         music_audio = music_audio.subclipped(0, video.duration)
