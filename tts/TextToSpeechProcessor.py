@@ -1,6 +1,7 @@
 # tts/TextToSpeechProcessor.py
 import os
 import json
+import tempfile
 from typing import Dict, Set, Union
 from moviepy import *
 from AppConfig import AppConfig
@@ -518,12 +519,19 @@ class TextToSpeechProcessor:
         # Set final audio to video
         video_with_music = video.with_audio(final_audio)
 
-        video_with_music.write_videofile(output_file, codec=f"{self.config.merged_video_codec}",
+        # Write to a temporary file first
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            temp_output = tmp.name
+
+        video_with_music.write_videofile(temp_output, codec=f"{self.config.merged_video_codec}",
                     audio_codec=f"{self.config.merged_audio_codec}",
                     fps=self.config.merged_video_fps)
         
         video.close()
         video_with_music.close()
+
+        # Replace the original output file with the temp file
+        os.replace(temp_output, output_file)
         print(f"Video with background music saved to {output_file}")            
     
     def save_decorated_data(self):
