@@ -30,6 +30,8 @@ class AppConfig:
         
         # TTS Configuration
         self.default_language: str = self._get_env('DEFAULT_LANGUAGE', 'English')
+        self.translation_language: str = self._get_env('TRANSLATION_LANGUAGE', 'English')
+        self.activate_translation: bool = self._get_env('ACTIVATE_TRANSLATION', 'false').lower() == 'true'
         self.default_speaker: str = self._get_env('DEFAULT_SPEAKER', 'neutral')
         
         # Audio Configuration

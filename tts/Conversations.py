@@ -5,7 +5,7 @@ from database.MongoDBConnection import MongoDBConnection
 
 class Conversation:
     """Represents a single conversation line."""
-    def __init__(self, order: int, speaker: 'Speaker', text: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None, sleep: Optional[int] = None):
+    def __init__(self, order: int, speaker: 'Speaker', text: str, native_text: Optional[str] = None, translated_text: Optional[str] = None, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None, sleep: Optional[int] = None):
         """
         Initialize a Conversation object.
         :param order: The order of the conversation.
@@ -20,6 +20,8 @@ class Conversation:
         self.order = order
         self.speaker = speaker
         self.text = text
+        self.native_text = native_text # not using for now, use text instead
+        self.translated_text = translated_text
         self.slide = slide  # Path to the slide file
         self.video = video  # Path to the video file
         self.audio_length = audio_length  # Length of the audio in seconds
@@ -28,16 +30,20 @@ class Conversation:
 
     def __repr__(self):
         return (f"Conversation(order={self.order}, speaker={self.speaker}, text='{self.text}', "
+                f"native_text='{self.native_text}', translated_text='{self.translated_text}', "
                 f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}', sleep={self.sleep})")
 
 
 class NewWord:
     """Represents a single new word entry."""
-    def __init__(self, order: int, word: str, meaning: str, example: str, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None, sleep: Optional[int] = None):
+    def __init__(self, order: int, word: str, meaning: str, example: str, translated_word: Optional[str] = None, translated_meaning: Optional[str] = None, translated_example: Optional[str] = None, slide: Optional[str] = None, video: Optional[str] = None, audio_length: Optional[int] = None, audio: Optional[str] = None, sleep: Optional[int] = None):
         self.order = order
         self.word = word
         self.meaning = meaning
         self.example = example
+        self.translated_word = translated_word
+        self.translated_meaning = translated_meaning
+        self.translated_example = translated_example
         self.slide = slide  # Path to the slide file
         self.video = video  # Path to the video file
         self.audio_length = audio_length  # Length of the audio in seconds
@@ -46,6 +52,8 @@ class NewWord:
 
     def __repr__(self):
         return (f"NewWord(order={self.order}, word='{self.word}', meaning='{self.meaning}', example='{self.example}', "
+                f"translated_word='{self.translated_word}', translated_meaning='{self.translated_meaning}', "
+                f"translated_example='{self.translated_example}', "
                 f"slide='{self.slide}', video='{self.video}', audio_length={self.audio_length}, audio='{self.audio}', sleep={self.sleep})")
 
 
@@ -116,6 +124,8 @@ class Conversations:
                 order=conv["order"],
                 speaker=self.speakers.get(conv["speaker"], Speaker(name=conv["speaker"], gender="unknown")),
                 text=conv["text"],
+                native_text=conv.get("native_text"),
+                translated_text=conv.get("translated_text"),
                 slide=conv.get("slide"),
                 video=conv.get("video"),
                 audio_length=conv.get("audio_length"),
@@ -132,6 +142,9 @@ class Conversations:
                 word=word.get("word"),
                 meaning=word.get("meaning"),
                 example=word.get("example"),
+                translated_word=word.get("translated_word"),
+                translated_meaning=word.get("translated_meaning"),
+                translated_example=word.get("translated_example"),
                 slide=word.get("slide"),
                 video=word.get("video"),
                 audio_length=word.get("audio_length"),

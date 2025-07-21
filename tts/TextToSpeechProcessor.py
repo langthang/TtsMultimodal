@@ -15,10 +15,22 @@ from uploaders.YouTubeUploader import YouTubeUploader
 from config.YouTubeConfig import YouTubeConfig
 
 # Mapping gender to Google TTS voice names
-GENDER_TO_GOOGLE_TTS_VOICE_NAMES = {
+GENDER_TO_GOOGLE_TTS_VOICE_NAMES_ENGLISH = {
     "female": ["en-US-Chirp3-HD-Aoede", "en-US-Chirp3-HD-Callirrhoe", "en-US-Chirp3-HD-Erinome", "en-US-Chirp3-HD-Kore", "en-US-Chirp3-HD-Leda"],
     "male": ["en-US-Chirp3-HD-Achird", "en-US-Chirp3-HD-Alnilam", "en-US-Chirp3-HD-Algenib", "en-US-Chirp3-HD-Charon", "en-US-Chirp3-HD-Sadachbia"],
     "neutral": ["en-US-Chirp3-HD-Achird"]
+}
+
+GENDER_TO_GOOGLE_TTS_VOICE_NAMES_FRENCH = {
+    "female": ["fr-FR-Chirp3-HD-Aoede", "fr-FR-Chirp3-HD-Autonoe", "fr-FR-Chirp3-HD-Callirrhoe", "fr-FR-Chirp3-HD-Despina", "fr-FR-Chirp3-HD-Erinome", "fr-FR-Chirp3-HD-Gacrux", "fr-FR-Chirp3-HD-Kore", "fr-FR-Chirp3-HD-Laomedeia", "fr-FR-Chirp3-HD-Leda", "fr-FR-Chirp3-HD-Pulcherrima", "fr-FR-Chirp3-HD-Sulafat", "fr-FR-Chirp3-HD-Vindemiatrix", "fr-FR-Chirp3-HD-Zephyr", "fr-FR-Chirp3-HD-Achernar"],
+    "male": ["fr-FR-Chirp3-HD-Achird", "fr-FR-Chirp3-HD-Algenib", "fr-FR-Chirp3-HD-Algieba", "fr-FR-Chirp3-HD-Alnilam", "fr-FR-Chirp3-HD-Charon", "fr-FR-Chirp3-HD-Enceladus", "fr-FR-Chirp3-HD-Fenrir", "fr-FR-Chirp3-HD-Iapetus", "fr-FR-Chirp3-HD-Orus", "fr-FR-Chirp3-HD-Puck", "fr-FR-Chirp3-HD-Rasalgethi", "fr-FR-Chirp3-HD-Sadachbia", "fr-FR-Chirp3-HD-Sadaltager", "fr-FR-Chirp3-HD-Schedar", "fr-FR-Chirp3-HD-Umbriel", "fr-FR-Chirp3-HD-Zubenelgenubi"],
+    "neutral": ["fr-FR-Chirp3-HD-Achird"]
+}
+
+GENDER_TO_GOOGLE_TTS_VOICE_NAMES_MAP = {
+    "English": GENDER_TO_GOOGLE_TTS_VOICE_NAMES_ENGLISH,
+    "French": GENDER_TO_GOOGLE_TTS_VOICE_NAMES_FRENCH,
+    # Add more languages if needed
 }
 
 # Mapping language to Google TTS language codes
@@ -26,6 +38,20 @@ LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE = {
     "English": "en-US",
     "French": "fr-FR",
     "Spanish": "es-ES"
+}
+
+# Mapping MEANING
+NEW_WORD_MEANING_BY_LANGUAGE = {
+    "English": "Meaning",
+    "French": "Signification",
+    "Spanish": "Meaning"
+}
+
+# Mapping MEANING
+NEW_WORD_EXAMPLE_BY_LANGUAGE = {
+    "English": "Example",
+    "French": "Exemple",
+    "Spanish": "Example"
 }
 
 class TextToSpeechProcessor:
@@ -39,6 +65,10 @@ class TextToSpeechProcessor:
         """
         self.config = AppConfig()
         self.speaking_rate = speaking_rate
+        self.language = self.config.default_language
+        self.translation_language = self.config.translation_language
+
+        self.gender_to_google_tts_voice_name = GENDER_TO_GOOGLE_TTS_VOICE_NAMES_MAP.get(self.language, GENDER_TO_GOOGLE_TTS_VOICE_NAMES_ENGLISH)
         
         # Initialize processors
         google_tts = GoogleTextToSpeech()
@@ -67,9 +97,10 @@ class TextToSpeechProcessor:
 
     def _get_language_code(self) -> str:
         """Get the language code for the current conversation."""
-        language = self.conversations_data.language
+        # language = self.conversations_data.language
+        # for now we use env variable to decide the language
         return LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE.get(
-            language, 
+            self.language,
             LANGUAGE_TO_GOOGLE_TTS_LANGUAGE_CODE[self.config.default_language]
         )
 
@@ -77,9 +108,9 @@ class TextToSpeechProcessor:
         """Assign unique voices to each speaker based on their gender."""
         for speaker_name, speaker in self.conversations_data.speakers.items():
             gender = speaker.gender.lower()
-            available_voices = GENDER_TO_GOOGLE_TTS_VOICE_NAMES.get(
+            available_voices = self.gender_to_google_tts_voice_name.get(
                 gender, 
-                GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker]
+                self.gender_to_google_tts_voice_name[self.config.default_speaker]
             )
 
             # Find the next available voice
@@ -91,7 +122,7 @@ class TextToSpeechProcessor:
 
             # If no voice assigned, use default
             if speaker_name not in self.speaker_to_voice:
-                self.speaker_to_voice[speaker_name] = GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker][0]
+                self.speaker_to_voice[speaker_name] = self.gender_to_google_tts_voice_name[self.config.default_speaker][0]
 
     def process_conversations(self):
         """Process conversations and generate media files."""
@@ -123,6 +154,7 @@ class TextToSpeechProcessor:
             slide_file = self.slide_generator.create_slide(
                 title=conversation.speaker.name,
                 content=conversation.text,
+                translated_content=conversation.translated_text,
                 background_image=self.conversations_data.get_conversations_background(),
                 output_file=slide_file
             )
@@ -164,7 +196,7 @@ class TextToSpeechProcessor:
                 sleep = getattr(new_word, "sleep", 0),
                 text=text_to_speak,
                 output_file=audio_file,
-                voice_name=GENDER_TO_GOOGLE_TTS_VOICE_NAMES[self.config.default_speaker][0],
+                voice_name=self.gender_to_google_tts_voice_name[self.config.default_speaker][0],
                 gender=self.config.default_speaker,
                 language_code=self._get_language_code(),
                 speaking_rate=self.speaking_rate
@@ -173,9 +205,11 @@ class TextToSpeechProcessor:
             # Generate slide
             slide_file = os.path.join(slide_dir, f"new_word_{new_word.order}.pptx")
             content = self._prepare_new_word_slide_content(new_word)
+            translated_content = self._prepare_new_word_slide_translated_content(new_word)
             slide_file = self.slide_generator.create_slide(
                 title=new_word.word or "",
                 content=content,
+                translated_content=translated_content,
                 background_image=self.conversations_data.get_new_words_background(),
                 output_file=slide_file
             )
@@ -197,15 +231,29 @@ class TextToSpeechProcessor:
 
     def _prepare_new_word_text(self, new_word) -> str:
         """Prepare text for new word speech synthesis."""
+        meaning_label = NEW_WORD_MEANING_BY_LANGUAGE.get(self.config.default_language, "Meaning")
+        example_label = NEW_WORD_EXAMPLE_BY_LANGUAGE.get(self.config.default_language, "Example")
         if new_word.order == 0 or new_word.word is None or new_word.meaning is None:
             return new_word.example
-        return f"{new_word.word}. Meaning: {new_word.meaning}. Example:  {new_word.example}."
+        return f"{new_word.word}. {meaning_label}: {new_word.meaning}. {example_label}: {new_word.example}."
 
     def _prepare_new_word_slide_content(self, new_word) -> str:
         """Prepare content for new word slide."""
+        meaning_label = NEW_WORD_MEANING_BY_LANGUAGE.get(self.config.default_language, "Meaning")
+        example_label = NEW_WORD_EXAMPLE_BY_LANGUAGE.get(self.config.default_language, "Example")
         if new_word.order == 0 or new_word.word is None or new_word.meaning is None:
             return new_word.example
-        return f"Meaning: {new_word.meaning}\n\nExample: {new_word.example}"
+        return f"{meaning_label}: {new_word.meaning}\n\n{example_label}: {new_word.example}"
+    
+    def _prepare_new_word_slide_translated_content(self, new_word) -> str:
+        """Prepare translated content for new word slide."""
+        meaning_label = NEW_WORD_MEANING_BY_LANGUAGE.get(self.config.translation_language, "Meaning")
+        example_label = NEW_WORD_EXAMPLE_BY_LANGUAGE.get(self.config.translation_language, "Example")
+        if new_word.translated_word is None and new_word.translated_meaning is None and new_word.translated_example is None:
+            return None
+        if new_word.order == 0 or new_word.translated_word is None or new_word.translated_meaning is None:
+            return new_word.translated_example
+        return f"{meaning_label}: {new_word.translated_meaning}\n\n{example_label}: {new_word.translated_example}"
 
     def merge_videos(self):
         """Merge all videos into final outputs."""
@@ -481,7 +529,7 @@ class TextToSpeechProcessor:
         music_volume = float(self.config.background_music_volume)
         output_file = os.path.splitext(self.json_file)[0] + "_merged_video.mp4"
 
-        if not music_file or music_file is "NONE"  or not os.path.exists(music_file):
+        if not music_file or music_file == "NONE"  or not os.path.exists(music_file):
             print(f"Background music file not found: {music_file}")
             return
 
@@ -563,6 +611,8 @@ class TextToSpeechProcessor:
                     "order": conv.order,
                     "speaker": conv.speaker.name,
                     "text": conv.text,
+                    "translated_text": conv.translated_text,
+                    "native_text": conv.native_text,
                     "slide": conv.slide,
                     "video": conv.video,
                     "audio_length": conv.audio_length,
@@ -576,6 +626,9 @@ class TextToSpeechProcessor:
                     "word": word.word,
                     "meaning": word.meaning,
                     "example": word.example,
+                    "translated_word": word.translated_word,
+                    "translated_meaning": word.translated_meaning,
+                    "translated_example": word.translated_example,
                     "slide": word.slide,
                     "video": word.video,
                     "audio_length": word.audio_length,
