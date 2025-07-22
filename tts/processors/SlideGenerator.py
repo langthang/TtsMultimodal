@@ -141,7 +141,7 @@ class SlideGenerator:
         text_frame.margin_right = Inches(0.5)
         text_frame.margin_top = Inches(0.2)
         text_frame.margin_bottom = Inches(0.2)
-        text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE  # Center vertically
+        text_frame.vertical_anchor = MSO_ANCHOR.BOTTOM  # Center vertically
 
         #content_shape.fill.solid()
         #content_shape.fill.fore_color.rgb = RGBColor(*self.config.slide_text_background_color)  # Background color
@@ -170,7 +170,7 @@ class SlideGenerator:
             Inches(0),  # Left position
             Inches(0),  # Top position (top of slide)
             self.slide_width,  # Full width
-            Inches(0)  # Height
+            Inches(3)  # Height
         )
 
         # Set transparent border
@@ -189,7 +189,7 @@ class SlideGenerator:
         text_frame.margin_right = Inches(0.5)
         text_frame.margin_top = Inches(0.2)
         text_frame.margin_bottom = Inches(0.2)
-        text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE  # Center vertically
+        text_frame.vertical_anchor = MSO_ANCHOR.TOP  # Center vertically
 
         # Apply gradient transparency effect (top style)
         self._set_shape_transparency_top(translated_shape, '0', angle='10800000', trans_angle='5400000')  # Fill: 0 degrees, Transparency: 90 degrees
@@ -326,12 +326,12 @@ class SlideGenerator:
         <a:gradFill rotWithShape="0" {nsdecls('a')}>
         <a:gsLst>
             <a:gs pos="0">
-            <a:srgbClr val="060606">
+            <a:srgbClr val="000000">
                 <a:alpha val="0"/>
             </a:srgbClr>
             </a:gs>
             <a:gs pos="100000">
-            <a:srgbClr val="000000">
+            <a:srgbClr val="060606">
                 <a:alpha val="100000"/>
             </a:srgbClr>
             </a:gs>
